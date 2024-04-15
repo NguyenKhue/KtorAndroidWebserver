@@ -13,15 +13,12 @@ import com.nphausg.app.embeddedserver.plugins.module
 import com.nphausg.app.embeddedserver.utils.NetworkUtils
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.network.tls.certificates.KeyType
-import io.ktor.network.tls.certificates.buildKeyStore
 import io.ktor.network.tls.certificates.saveToFile
-import io.ktor.network.tls.extensions.HashAlgorithm
-import io.ktor.network.tls.extensions.SignatureAlgorithm
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
 import io.ktor.server.engine.embeddedServer
+import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
 import io.ktor.server.response.respondText
 import kotlinx.coroutines.CoroutineScope
@@ -31,106 +28,61 @@ import org.slf4j.LoggerFactory
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.security.KeyFactory
-import java.security.KeyPair
 import java.security.KeyStore
-import java.security.PrivateKey
 import java.security.cert.CertificateFactory
-import java.security.interfaces.RSAPrivateKey
-import java.security.interfaces.RSAPublicKey
-import java.security.spec.X509EncodedKeySpec
-import javax.security.auth.x500.X500Principal
+import java.security.spec.PKCS8EncodedKeySpec
 
-
-public fun KeyStore.generateCertificate(
-    file: File? = null,
-    algorithm: String = "SHA1withRSA",
-    keyAlias: String = "mykey",
-    keyPassword: String = "changeit",
-    jksPassword: String = keyPassword,
-    keySizeInBits: Int = 1024,
-    caKeyAlias: String = "mykey",
-    caPassword: String = "changeit",
-    keyType: KeyType = KeyType.Server
-): KeyStore {
-    val caCert = getCertificate(caKeyAlias)
-    val caKeys = KeyPair(caCert.publicKey, getKey(caKeyAlias, caPassword.toCharArray()) as PrivateKey)
-
-    val keyStore = buildKeyStore {
-        certificate(keyAlias) {
-            val (hashName, signName) = algorithm.split("with")
-            this.hash = HashAlgorithm.valueOf(hashName)
-            this.sign = SignatureAlgorithm.valueOf(signName)
-            this.password = keyPassword
-            this.keySizeInBits = keySizeInBits
-            this.keyType = keyType
-            this.subject = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN")
-            this.domains = listOf("127.0.0.1", "localhost")
-            signWith(
-                issuerKeyPair = caKeys,
-                issuerKeyCertificate = caCert,
-                issuerName = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN"),
-            )
-        }
-    }
-
-    file?.let {
-        keyStore.saveToFile(it, jksPassword)
-    }
-    return keyStore
-}
 
 val crt = "-----BEGIN CERTIFICATE-----\n" +
-        "MIID1TCCAr2gAwIBAgIUcgjkUYhqJKliF2Rfxm+0tzM8dzEwDQYJKoZIhvcNAQEL\n" +
-        "BQAwejELMAkGA1UEBhMCVk4xDDAKBgNVBAgMA0hDTTEMMAoGA1UEBwwDSENNMQsw\n" +
-        "CQYDVQQKDAJTUzELMAkGA1UECwwCc2ExDTALBgNVBAMMBGtodWUxJjAkBgkqhkiG\n" +
-        "9w0BCQEWFzA5MDMyMDAxa2h1bmdAZ21haWwuY29tMB4XDTI0MDQxNDE2NTY0OVoX\n" +
-        "DTI5MDQxMzE2NTY0OVowejELMAkGA1UEBhMCVk4xDDAKBgNVBAgMA0hDTTEMMAoG\n" +
-        "A1UEBwwDSENNMQswCQYDVQQKDAJTUzELMAkGA1UECwwCc2ExDTALBgNVBAMMBGto\n" +
-        "dWUxJjAkBgkqhkiG9w0BCQEWFzA5MDMyMDAxa2h1bmdAZ21haWwuY29tMIIBIjAN\n" +
-        "BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnvM3lvsxOQBjXAm/jkDFEG/KoDc/\n" +
-        "7jfU2WTM96s9nYbp0QPq7FjcCMVKgXp2on7hpKFmqEeqXvP27Cv7MRqBu3+u2fO2\n" +
-        "q1pkT6ZLHgmuqWbZr1NPliIul4SwwjaXtXfwy0p9zsh1gcRcqStaHF377iNM323r\n" +
-        "Ti2tQjB2/yxZugaQICJHbv7xSgtdG5GMbzPLKiTabJgf2q8feJUD2LC2vm7vBpK0\n" +
-        "PvtAj/CNkYAPjUBeyerp83XAPHilClLhRFMl3Jpm4Fa0AxzO/xZT4RhXbjXCPAWg\n" +
-        "Yrcyy4j5ESxqobV0DgBKwH/s32JiiS8LdVHAQlcP/fBqBuIWWOVcQE7UuQIDAQAB\n" +
-        "o1MwUTAdBgNVHQ4EFgQU85f9iye5T+oic2EHwI4CDZbZVLAwHwYDVR0jBBgwFoAU\n" +
-        "85f9iye5T+oic2EHwI4CDZbZVLAwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B\n" +
-        "AQsFAAOCAQEASUdGaXzWh5JFGPEOB2iqE1Q+TiGevjg4YC97CpUibSPD6oUE9m56\n" +
-        "7K+NL64y5kgHLFrlTxZmwGInRLjL+7+LqdlOaUJ0f6qjuVEZfMLqFgP/Gp7K4pNh\n" +
-        "uq6et2lAl7zROOEODogTR+ukEiF7zTLG2ib/SZ5Kzrft+GIxzIP7vIkBZmDYtUCq\n" +
-        "KoKq04orA5AmODvk4Nve3wpZfsYJd6nBqjQYTIUnCQUKk8Ua0Q8tMU0jkVYTkuJP\n" +
-        "dNAJSZMWjsigzhH1b5GbkosxfSp6pOzRwySXjFE7OJcYyY2oNHLQPf1XDdJa9k9O\n" +
-        "CmOHqf8gNBjSnMfxD6Nx8T4W+1OQmMrrtg==\n" +
+        "MIID2TCCAsGgAwIBAgIUY34cAQzIs2ZFtMC9H8xkHkypw40wDQYJKoZIhvcNAQEL\n" +
+        "BQAwfDELMAkGA1UEBhMCVk4xDDAKBgNVBAgMA0hDTTEMMAoGA1UEBwwDSENNMQsw\n" +
+        "CQYDVQQKDAJTUzELMAkGA1UECwwCc2ExDzANBgNVBAMMBmVwYXBlcjEmMCQGCSqG\n" +
+        "SIb3DQEJARYXMDkwMzIwMDFraHVuZ0BnbWFpbC5jb20wHhcNMjQwNDE1MTczNTIw\n" +
+        "WhcNMjkwNDE0MTczNTIwWjB8MQswCQYDVQQGEwJWTjEMMAoGA1UECAwDSENNMQww\n" +
+        "CgYDVQQHDANIQ00xCzAJBgNVBAoMAlNTMQswCQYDVQQLDAJzYTEPMA0GA1UEAwwG\n" +
+        "ZXBhcGVyMSYwJAYJKoZIhvcNAQkBFhcwOTAzMjAwMWtodW5nQGdtYWlsLmNvbTCC\n" +
+        "ASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJbVni9kt04YUxtUO1u+cbbh\n" +
+        "/mYwbA9vVnHZRqp8bUCiTHR8OkVHo/ShiagUt2XfGyUVLUtCwoFdIoMRb5PBxY1X\n" +
+        "1zshZI5zKWU6CrgF4fb2xWjvm0tqLcrviffMT51vnohUGuUO6rMsZHPbToXpOY3R\n" +
+        "Hwh/7Z+NeeRPq8J6tMQM3Yq1y1SyyBlTogj6EWXPuud8M8BcvSNYQH26lQTsOJxo\n" +
+        "4unISol1UOumFEylAUXZWPt8PYvyOXEcK3fQfsA8HHI/wmxB5EieEi8s2/fAAuam\n" +
+        "6vuLERZcGeakcsfkwOkqFeGxzzyaC0Xt/NDxuTAyLMMNTr9R4dbvebcuKB9Ud+0C\n" +
+        "AwEAAaNTMFEwHQYDVR0OBBYEFCryj4bm1Y3/8/CblVEls+mbHJXcMB8GA1UdIwQY\n" +
+        "MBaAFCryj4bm1Y3/8/CblVEls+mbHJXcMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZI\n" +
+        "hvcNAQELBQADggEBAF4b+1PwU42fWBFo+ACnWVd0HQq7V92kX44LCKdjaZM71XIt\n" +
+        "vcptTg1aEolyVSH2j4Ni+3uxiOzXVxY2c75o0C1w/N5Y3jRBzqnMTiw6l7AUzbdw\n" +
+        "eM6veos4UCw5l1ALhquuLzCT7acGYD0iWk6QRQpn5cGuTQlAAFNNMGzm2l3pxvCW\n" +
+        "UWSM2uE665fhqDQET0lLs/FGmGK3V9DSIWo7LB/cr4cp0tFFyOk6Qm3yu+bm4jLF\n" +
+        "kIJG9rhcxvl28Y20ZPZadsWbKLlVv413su8ThmnekM8yXDPxp8Eh504r7miamGf7\n" +
+        "dF0faRatl0DlAITKv0NMjVe5/QRKnZXLB8MpLmU=\n" +
         "-----END CERTIFICATE-----"
 
-val key = "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\n" +
-        "2oj3WVfe0iFf6rh82wI5yKOzqnhWTm4j"
+val key = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCW1Z4vZLdOGFMb\n" +
+        "VDtbvnG24f5mMGwPb1Zx2UaqfG1Aokx0fDpFR6P0oYmoFLdl3xslFS1LQsKBXSKD\n" +
+        "EW+TwcWNV9c7IWSOcyllOgq4BeH29sVo75tLai3K74n3zE+db56IVBrlDuqzLGRz\n" +
+        "206F6TmN0R8If+2fjXnkT6vCerTEDN2KtctUssgZU6II+hFlz7rnfDPAXL0jWEB9\n" +
+        "upUE7DicaOLpyEqJdVDrphRMpQFF2Vj7fD2L8jlxHCt30H7APBxyP8JsQeRInhIv\n" +
+        "LNv3wALmpur7ixEWXBnmpHLH5MDpKhXhsc88mgtF7fzQ8bkwMizDDU6/UeHW73m3\n" +
+        "LigfVHftAgMBAAECggEAF14GwJ7gywd3sI8vFvp9EXEXgWtVAlskUETx7q2SG2ZJ\n" +
+        "Y+5u9Jaxrs9rzQ9QjkavJOKP/s3b5kCwfQ+xcnmdilUmcfGta2gp7JW+XV4D8Mew\n" +
+        "M56TN26+o2bSwAH1/5TwQXyOIhhageGJum0qUBKeqPrRzPZMsOAxFw7EtD9gS9LZ\n" +
+        "cQTckqK1FwYAtKpaEKOy29jYlUhx2cA1HqcLQr/tAPhIoAwRRII1yk/4qepi2wYA\n" +
+        "oXD2Xm5dgxggod6ULvfavUiO0JjKF7IMbdH4Qra9DLQBdThFI6O14jkmYPLaXY61\n" +
+        "Vo5cD98eUS74R/Yy+8S6MPwBg0r4scpW2ISEKGR2IQKBgQDPqpYaU/t2KA6hwoYg\n" +
+        "d87JqMyScukSwxqDbxFBK0zxwj9pKAL0h53SmILRlD8WFQG9eCuXNxV2Xrc8bhF4\n" +
+        "9qWk537v20emvMrFeIzsLrNR2AT8WLStJ5fw3MasbfoGrfh5HdXP01b5Pja+ryY3\n" +
+        "SkbaQTjf842FbrqLprj8CL+PSQKBgQC58M7W9n9NDsSREEqSRpZS9iCA2T0fsVqW\n" +
+        "OxwnwW/hV6VdAR3hYHvh9Uvhn4kfoER3S0yeyFMx04tXhqB8oi1OSb5S5x6IETR/\n" +
+        "UlZ123svsnKtOYZGlepFYYkKM0H19BAHl1A+sWupGyyHDaL9UpMZRzOnhTsLbMt+\n" +
+        "RJ3mwFvPhQKBgQCGWwasWAOMSZRV4cXngbwfSn+4jHHxOpuPx68xK7OngpaGEWYA\n" +
+        "ETHxy8xvjetW/RZYIESLnA7du5/vkALr8R/wVfoRcxyjaugB5OG/+OL5o7puDXIv\n" +
+        "yTsLkbtUWf72jV4B9mScBk7yCOdgbW9bPEok8Se79RZt6tr0eVSbc4mESQKBgCiQ\n" +
+        "MP9SLPlJhHZFAI+imH6mtPaG7b+xOBrX8E938olNToTYjoUxQDVOBuzEmextUSJZ\n" +
+        "KfDlsMiI5rgEZZRq6MlQaxW4179FSZeRBc2WQOxp2HyTtQhHAiF6oqO4BOa8BJcz\n" +
+        "Wk0i9WKhy/f2cJ0k23RDRTCBbx0R8d6s52mEg0LlAoGACGUs7s7lnogvUAYGYOrm\n" +
+        "ResVL586o79pY5WZQmlS2mUdvd7Hn5Jm4CGVHJ8jpH2fgXOkpTRkHo22ESeHrdde\n" +
+        "wVG/6IhbHn9cFGhx49xYx/f7e3qY+JQS8VFu1jyHZ3Q6Zrg/sagV2tHKMB+WZG0D\n" +
+        "3hbrIJ+qCX2GZbE04AXZbf4="
 
 object EmbeddedServer {
 
@@ -139,47 +91,49 @@ object EmbeddedServer {
     private lateinit var applicationContext: Context
 
     private val server by lazy {
-//        val keyStoreFile = File(applicationContext.filesDir, "keystore.jks")
-//
-//        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
-//        val certificateFactory = CertificateFactory.getInstance("X509")
-//        val epaperCA = certificateFactory.generateCertificate(ByteArrayInputStream(crt.toByteArray()))
-//        keyStore.load(null, null)
-//
-//        val encoded: ByteArray = Base64.decode(key.replace(System.lineSeparator(), ""), Base64.DEFAULT)
-//
-//        val keyFactory = KeyFactory.getInstance("RSA")
-//        val keySpec = X509EncodedKeySpec(encoded)
-//
-//        keyStore.setKeyEntry(alias = "khue", chain = epaperCA , key = keyFactory.generatePrivate(keySpec) as RSAPrivateKey, password = "khue".toCharArray())
-//        keyStore.saveToFile(keyStoreFile, "123456")
+        val keyStoreFile = File(applicationContext.filesDir, "keystore.jks")
+
+        val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
+        val certificateFactory = CertificateFactory.getInstance("X509")
+        val epaperCA =
+            certificateFactory.generateCertificate(ByteArrayInputStream(crt.toByteArray()))
+        keyStore.load(null, null)
+
+        val encoded: ByteArray =
+            Base64.decode(key.replace(System.lineSeparator(), ""), Base64.DEFAULT)
+        val keyFactory = KeyFactory.getInstance("RSA")
+        val keySpec = PKCS8EncodedKeySpec(encoded)
+
+        val certChain = listOfNotNull(epaperCA).toTypedArray()
+        val newPrivateKey = keyFactory.generatePrivate(keySpec)
+        Log.d("EmbeddedServer", "newPrivateKey: $newPrivateKey")
+        keyStore.setKeyEntry(
+            "khue",
+            newPrivateKey,
+            "khue".toCharArray(),
+            certChain,
+        )
+
+        keyStore.saveToFile(keyStoreFile, "123456")
 
 
-//        val keyStore = buildKeyStore {
-//            certificate("sampleAlias") {
-//                password = "foobar"
-//                domains = listOf(NetworkUtils.getLocalIpAddress() ?: "127.0.0.1", "127.0.0.1",  "0.0.0.0", "localhost")
-//                subject = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN")
-//            }
-//        }
-
-//        keyStore.getCertificateChain("khue").also {
-//            Log.d("EmbeddedServer", it.toList().toString())
-//        }
+        keyStore.getCertificateChain("khue").also {
+            Log.d("EmbeddedServer", it.toList().toString())
+        }
 
         val environment = applicationEngineEnvironment {
             log = LoggerFactory.getLogger("ktor.application")
             connector {
                 port = PORT
             }
-//            sslConnector(
-//                keyStore = keyStore,
-//                keyAlias = "khue",
-//                keyStorePassword = { "123456".toCharArray() },
-//                privateKeyPassword = { "khue".toCharArray() }) {
-//                port = 8443
-//                keyStorePath = keyStoreFile
-//            }
+            sslConnector(
+                keyStore = keyStore,
+                keyAlias = "khue",
+                keyStorePassword = { "123456".toCharArray() },
+                privateKeyPassword = { "khue".toCharArray() }) {
+                port = 8443
+                keyStorePath = keyStoreFile
+            }
             module {
                 module(applicationContext)
             }
@@ -221,3 +175,4 @@ object EmbeddedServer {
         )
     }
 }
+
