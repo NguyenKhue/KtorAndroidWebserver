@@ -6,8 +6,11 @@
 
 package com.nphausg.app.embeddedserver.activities
 
+import android.content.res.AssetManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.animation.core.Animatable
@@ -59,33 +62,67 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.nphausg.app.embeddedserver.EmbeddedServer
 import com.nphausg.app.embeddedserver.R
 import com.nphausg.app.ui.ImsApp
-import com.nphausg.app.ui.components.theme.ImsTheme
 import com.nphausg.app.ui.components.ThemePreviews
 import com.nphausg.app.ui.components.button.ImsButton
 import com.nphausg.app.ui.components.button.ImsOutlinedButton
 import com.nphausg.app.ui.components.icon.ImsIcons
+import com.nphausg.app.ui.components.theme.ImsTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.time.Duration.Companion.seconds
 
+
 class MainActivity : AppCompatActivity() {
+
+    private fun copyAssets() {
+        val assetManager: AssetManager = getAssets()
+        var `in`: InputStream?
+        var out: OutputStream?
+        try {
+            `in` = assetManager.open("images/file.png")
+            val outDir = this.cacheDir
+            val outFile = File(outDir, "file.png")
+            out = FileOutputStream(outFile)
+            copyFile(`in`, out)
+            `in`.close()
+            out.flush()
+            out.close()
+        } catch (e: IOException) {
+            Log.e("tag", "Failed to copy asset file: file.png", e)
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun copyFile(`in`: InputStream, out: OutputStream) {
+        val buffer = ByteArray(1024)
+        var read: Int
+        while (`in`.read(buffer).also { read = it } != -1) {
+            out.write(buffer, 0, read)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        // Keep the splash screen on-screen until the UI state is loaded. This condition is
-        // evaluated each time the app needs to be redrawn so it should be fast to avoid blocking
-        // the UI.
+
         splashScreen.setKeepOnScreenCondition {
             false
         }
-        // Turn off the decor fitting system windows, which allows us to handle insets,
-        // including IME animations, and go edge-to-edge
-        // This also sets up the initial system bar style based on the platform theme
-        // enableEdgeToEdge()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            copyAssets()
+        }
+
         setContent {
             CompositionLocalProvider() {
                 ImsTheme {
@@ -221,12 +258,22 @@ private fun MainScreen() {
                 )
             }
 
+//            Row(modifier = Modifier) {
+//                Icon(imageVector = ImsIcons.PlayArrow, contentDescription = null)
+//                Text(
+//                    color = Color.Black,
+//                    textAlign = TextAlign.Start,
+//                    text = String.format("GET: %s/fruits/{id}", EmbeddedServer.host),
+//                    style = MaterialTheme.typography.titleMedium,
+//                )
+//            }
+
             Row(modifier = Modifier) {
                 Icon(imageVector = ImsIcons.PlayArrow, contentDescription = null)
                 Text(
                     color = Color.Black,
                     textAlign = TextAlign.Start,
-                    text = String.format("GET: %s/fruits/{id}", EmbeddedServer.host),
+                    text = String.format("Download: %s/download", EmbeddedServer.host),
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -297,6 +344,7 @@ private fun MainScreen() {
         Spacer(modifier = Modifier.weight(1f))
     }
 }
+
 
 @ThemePreviews
 @Composable
