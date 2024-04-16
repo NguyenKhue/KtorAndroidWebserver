@@ -11,13 +11,8 @@ import com.nphausg.app.embeddedserver.plugins.module
 import com.nphausg.app.embeddedserver.utils.NetworkUtils
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.network.tls.certificates.DEFAULT_CA_PRINCIPAL
-import io.ktor.network.tls.certificates.DEFAULT_PRINCIPAL
-import io.ktor.network.tls.certificates.KeyType
 import io.ktor.network.tls.certificates.buildKeyStore
 import io.ktor.network.tls.certificates.saveToFile
-import io.ktor.network.tls.extensions.HashAlgorithm
-import io.ktor.network.tls.extensions.SignatureAlgorithm
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.engine.applicationEngineEnvironment
 import io.ktor.server.engine.connector
@@ -30,48 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.security.KeyPair
-import java.security.KeyStore
-import java.security.PrivateKey
 import javax.security.auth.x500.X500Principal
 
-public fun KeyStore.generateCertificate(
-    file: File? = null,
-    algorithm: String = "SHA1withRSA",
-    keyAlias: String = "mykey",
-    keyPassword: String = "changeit",
-    jksPassword: String = keyPassword,
-    keySizeInBits: Int = 1024,
-    caKeyAlias: String = "mykey",
-    caPassword: String = "changeit",
-    keyType: KeyType = KeyType.Server
-): KeyStore {
-    val caCert = getCertificate(caKeyAlias)
-    val caKeys = KeyPair(caCert.publicKey, getKey(caKeyAlias, caPassword.toCharArray()) as PrivateKey)
-
-    val keyStore = buildKeyStore {
-        certificate(keyAlias) {
-            val (hashName, signName) = algorithm.split("with")
-            this.hash = HashAlgorithm.valueOf(hashName)
-            this.sign = SignatureAlgorithm.valueOf(signName)
-            this.password = keyPassword
-            this.keySizeInBits = keySizeInBits
-            this.keyType = keyType
-            this.subject = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN")
-            this.domains = listOf("127.0.0.1", "localhost")
-            signWith(
-                issuerKeyPair = caKeys,
-                issuerKeyCertificate = caCert,
-                issuerName = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN"),
-            )
-        }
-    }
-
-    file?.let {
-        keyStore.saveToFile(it, jksPassword)
-    }
-    return keyStore
-}
 
 object EmbeddedServer {
 
