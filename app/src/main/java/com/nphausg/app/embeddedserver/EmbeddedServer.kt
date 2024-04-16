@@ -86,7 +86,7 @@ val key = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCW1Z4vZLdOGFMb\n" +
 
 object EmbeddedServer {
 
-    private const val PORT = 6868
+    private const val PORT = 8001
     private val ioScope = CoroutineScope(Dispatchers.IO)
     private lateinit var applicationContext: Context
 
@@ -131,7 +131,7 @@ object EmbeddedServer {
                 keyAlias = "khue",
                 keyStorePassword = { "123456".toCharArray() },
                 privateKeyPassword = { "khue".toCharArray() }) {
-                port = 8443
+                port = 8002
                 keyStorePath = keyStoreFile
             }
             module {

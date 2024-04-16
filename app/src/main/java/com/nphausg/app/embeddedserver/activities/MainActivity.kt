@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -65,12 +66,14 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.nphausg.app.embeddedserver.EmbeddedServer
 import com.nphausg.app.embeddedserver.R
+import com.nphausg.app.embeddedserver.plugins.connections
 import com.nphausg.app.ui.ImsApp
 import com.nphausg.app.ui.components.ThemePreviews
 import com.nphausg.app.ui.components.button.ImsButton
 import com.nphausg.app.ui.components.button.ImsOutlinedButton
 import com.nphausg.app.ui.components.icon.ImsIcons
 import com.nphausg.app.ui.components.theme.ImsTheme
+import io.ktor.websocket.send
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -205,6 +208,8 @@ private fun MainScreen() {
         }
     }
 
+    val scope = rememberCoroutineScope()
+
     var hasStarted by remember { mutableStateOf(false) }
 
     val value by rememberInfiniteTransition().animateFloat(
@@ -239,6 +244,16 @@ private fun MainScreen() {
                 alignment = Alignment.CenterVertically
             )
         ) {
+            Button(onClick = {
+                scope.launch {
+                    connections.forEach { connection ->
+                        connection.session.send("Test message from server")
+                    }
+                    //connections.first().session.send("Test message from server to user0")
+                }
+            }) {
+                Text(text = "Send test message to all socket client")
+            }
             Row {
                 Icon(imageVector = ImsIcons.PlayArrow, contentDescription = null)
                 Text(
