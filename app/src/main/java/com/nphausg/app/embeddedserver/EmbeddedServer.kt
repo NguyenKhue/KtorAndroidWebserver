@@ -30,7 +30,7 @@ import javax.security.auth.x500.X500Principal
 
 object EmbeddedServer {
 
-    private const val PORT = 6868
+    private const val PORT = 8001
     private val ioScope = CoroutineScope(Dispatchers.IO)
     private lateinit var applicationContext: Context
 
@@ -58,7 +58,7 @@ object EmbeddedServer {
                 keyAlias = "sampleAlias",
                 keyStorePassword = { "123456".toCharArray() },
                 privateKeyPassword = { "foobar".toCharArray() }) {
-                port = 8443
+                port = 8002
                 keyStorePath = keyStoreFile
 
             }
