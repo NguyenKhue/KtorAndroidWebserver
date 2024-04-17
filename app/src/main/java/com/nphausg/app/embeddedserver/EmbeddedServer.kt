@@ -9,6 +9,7 @@ package com.nphausg.app.embeddedserver
 import android.content.Context
 import android.util.Base64
 import android.util.Log
+import com.nphausg.app.embeddedserver.plugins.connections
 import com.nphausg.app.embeddedserver.plugins.module
 import com.nphausg.app.embeddedserver.utils.NetworkUtils
 import io.ktor.http.ContentType
@@ -21,6 +22,8 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.engine.sslConnector
 import io.ktor.server.netty.Netty
 import io.ktor.server.response.respondText
+import io.ktor.websocket.CloseReason
+import io.ktor.websocket.close
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -157,6 +160,9 @@ object EmbeddedServer {
     fun stop() {
         ioScope.launch {
             try {
+                connections.forEach {
+                    it.session.close(CloseReason(1000, "close"))
+                }
                 server.stop(500, 1000)
             } catch (e: Exception) {
                 e.printStackTrace()
