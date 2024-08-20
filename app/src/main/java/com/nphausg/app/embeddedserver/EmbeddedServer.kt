@@ -7,6 +7,7 @@
 package com.nphausg.app.embeddedserver
 
 import android.content.Context
+import android.util.Log
 import com.nphausg.app.embeddedserver.plugins.module
 import com.nphausg.app.embeddedserver.utils.NetworkUtils
 import io.ktor.http.ContentType
@@ -26,8 +27,13 @@ import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.io.File
 import javax.security.auth.x500.X500Principal
+import android.util.Base64
+import io.ktor.network.tls.certificates.KeyType
 
-
+// https://yggr.medium.com/how-to-generate-public-private-key-in-android-7f3e244c0fd8
+// https://www.linkedin.com/pulse/generate-self-signed-x509-certificate-using-javakotlin-yogesh-bisht-7eelc
+// https://stackoverflow.com/questions/29852290/self-signed-x509-certificate-with-bouncy-castle-in-java
+// https://gist.github.com/alessandroleite/fa3e763552bb8b409bfa
 object EmbeddedServer {
 
     private const val PORT = 8001
@@ -42,11 +48,17 @@ object EmbeddedServer {
                 password = "foobar"
                 domains = listOf(NetworkUtils.getLocalIpAddress() ?: "127.0.0.1", "127.0.0.1",  "0.0.0.0", "localhost")
                 subject = X500Principal("CN=EPaper, OU=Kotlin, O=Samsung, C=VN")
+                keySizeInBits = 4096
+                daysValid = 10
+                keyType = KeyType.Server
             }
         }
 
 
         keyStore.saveToFile(keyStoreFile, "123456")
+
+        Log.d("EmbeddedServer", String(Base64.encode(keyStore.getCertificate("sampleAlias").encoded, Base64.DEFAULT)))
+        Log.d("EmbeddedServer", keyStore.getCertificate("sampleAlias").toString())
 
         val environment = applicationEngineEnvironment {
             log = LoggerFactory.getLogger("ktor.application")
